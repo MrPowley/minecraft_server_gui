@@ -40,17 +40,17 @@ def start_server():
                 [config["java_path"], f"-Xmx{config["ram"]}M", "-jar", config["server_jar"], "nogui"],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags = subprocess.CREATE_NO_WINDOW
             )
-            log_message("Démarrage du serveur.")
+            log_message("Démarrage du serveur.", "LOG")
             start_button.config(state=tk.DISABLED)
             stop_button.config(state=tk.NORMAL)
             backup_button.config(state=tk.DISABLED)
             threading.Thread(target=read_server_output, daemon=True).start()
             os.chdir(PWD)
         except Exception as e:
-            log_message(f"Erreur lors du démarrage du serveur : {e}")
+            log_message(f"Erreur lors du démarrage du serveur : {e}", "WARN")
             messagebox.showerror("Erreur", "Impossible de démarrer le serveur.")
     else:
-        log_message("Le serveur est déjà en cours d'exécution.")
+        log_message("Le serveur est déjà en cours d'exécution.", "WARN")
 
 # Fonction pour arrêter le serveur
 def stop_server():
@@ -60,11 +60,10 @@ def stop_server():
         start_button.config(state=tk.NORMAL)
         stop_button.config(state=tk.DISABLED)
         backup_button.config(state=tk.NORMAL)
-        log_message("Serveur Minecraft en cours d'arret...")
-        log_message("Serveur Minecraft arrêté.")
+        log_message("Serveur Minecraft arrêté.", "LOG")
         server_process = None
     else:
-        log_message("Aucun serveur n'est en cours d'exécution.")
+        log_message("Aucun serveur n'est en cours d'exécution.", "WARN")
 
 # Fonction pour arrêter le serveur
 def kill_server():
@@ -72,10 +71,12 @@ def kill_server():
     if server_process:
         server_process.kill()
         server_process = None
-        log_message("Serveur Minecraft arrêté.")
+        log_message("Serveur Minecraft arrêté.", "LOG")
     else:
-        log_message("Aucun serveur n'est en cours d'exécution.")
+        log_message("Aucun serveur n'est en cours d'exécution.", "WARN")
 
+def get_time(format: str = "%Y_%m_%d-%H_%M_%S") -> str:
+    return datetime.now().strftime(format)
 
 def backup_server():
     global server_process
@@ -83,13 +84,13 @@ def backup_server():
         showerror("Backup", "Le serveur est en fonctionnement, arretez le pour effetuer la backup")
         return
 
-    log_message("Starting Backup Now")
+    log_message("Starting Backup Now", "LOG")
     backup_path = os.path.join(PWD, "..", "backup")
     if not os.path.exists(backup_path):
         os.mkdir(backup_path)
-    now = datetime.now().strftime('%Y_%m_%d-%H_%M_%S')
+    now = get_time()
     shutil.make_archive(os.path.join(backup_path, f"Backup-{now}"), "zip", PWD)
-    log_message("Server backed up")
+    log_message("Server backed up", "LOG")
 
 def on_close():
     global server_process
@@ -107,13 +108,15 @@ def on_close():
     root.destroy()
     return
 
-def check_log_level(line):
+def check_log_level(line: str) -> str:
     pattern_tag = re.compile(
         r"\[([0-9]+(:[0-9]+)+) (TRACE|DEBUG|INFO|NOTICE|WARN|WARNING|ERROR|SEVERE|FATAL)\]",
         re.IGNORECASE
     )
     if match := pattern_tag.match(line):
         return match.group(3)
+    
+    return "LOG"
 
 
 def check_player(line):
@@ -166,8 +169,21 @@ def read_server_output():
 
             check_player(line)
             tag = check_log_level(line)
-            log_message(line, tag)
+            log_message(line, tag, True)
 
+# Fonction pour afficher un message dans la console
+def log_message(message, tag = "LOG", mc_console: bool = False):
+    if not mc_console:
+        now = get_time("%H:%M:%S")
+        time = f"[{now} {tag}]"
+        message = f"{time}: {message}"
+
+    console_text.config(state=tk.NORMAL)
+    console_text.insert(tk.END, message + "\n", tag)
+    console_text.config(state=tk.DISABLED)
+    if auto_scroll_var.get() == 1:
+        console_text.yview(tk.END)
+    return
 
 
 # Envoyer une commande au serveur
@@ -176,17 +192,17 @@ def send_command(command = None):
     if not command or type(command) != str:
         command = command_entry.get()
     if not server_process:
-        log_message("Serveur non démarré.")
+        log_message("Serveur non démarré.", "WARN")
     elif not command:
-        log_message("Commande vide.")
+        log_message("Commande vide.", "WARN")
     else:
         try:
             server_process.stdin.write(command + "\n")
             server_process.stdin.flush()
-            log_message(f"Commande envoyée : {command}")
+            log_message(f"Commande envoyée : {command}", "INFO")
             command_entry.delete(0, tk.END)
         except Exception as e:
-            log_message(f"Erreur d'envoi de commande : {e}")
+            log_message(f"Erreur d'envoi de commande : {e}", "WARN")
 
 def kick():
     current_item = player_list.focus()
@@ -198,14 +214,6 @@ def ban():
     player_name = player_list.item(current_item)["text"]
     send_command(f"ban {player_name}")     
 
-# Fonction pour afficher un message dans la console
-def log_message(message, tag = "LOG"):
-    console_text.config(state=tk.NORMAL)
-    console_text.insert(tk.END, message + "\n", tag)
-    console_text.config(state=tk.DISABLED)
-    if auto_scroll_var.get() == 1:
-        console_text.yview(tk.END)
-    return
 
 def ct_popup(event):
     try:
