@@ -34,7 +34,8 @@ def start_server():
     global server_process
     if server_process is None:
         try:
-            os.chdir(config["server_path"])
+            if config["server_path"]:
+                os.chdir(config["server_path"])
 
             server_process = subprocess.Popen(
                 [config["java_path"], f"-Xmx{config["ram"]}M", "-jar", config["server_jar"], "nogui"],
@@ -234,13 +235,28 @@ def save_config(config: dict = DEFAULT_CONFIG) -> None:
         yaml.dump(config, file)
     return
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 config = load_config()
 
 # Interface Tkinter
 root = tk.Tk()
 root.title("Panneau Serveur")
 root.geometry("1200x400")
-# root.iconbitmap("icon.ico")
+try:
+    icon = resource_path("icon.ico")
+    root.iconbitmap(icon)
+except:
+    pass
 
 top_frame = ttk.Frame(root)
 top_frame.pack(side="top", fill="both", expand=True)
