@@ -7,6 +7,7 @@ class ServerConfig:
     """Gère la configuration du serveur Minecraft."""
 
     DEFAULT_CONFIG = {
+        "server-name": "",
         "java_path": "java",
         "server_path": "",
         "server_jar": "paper.jar",
@@ -14,7 +15,10 @@ class ServerConfig:
         "log-exclusion": {
             "absolute": [],
             "regex": []
-        }
+        },
+        "interface-theme": "light",
+        "font" : "consolas",
+
     }
 
     def __init__(self, config_path="config.yml"):
